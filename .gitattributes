@@ -1,0 +1,40 @@
+# Unity large/binary assets (use LFS)
+*.psd filter=lfs diff=lfs merge=lfs -text
+*.fbx filter=lfs diff=lfs merge=lfs -text
+*.wav filter=lfs diff=lfs merge=lfs -text
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.unitypackage filter=lfs diff=lfs merge=lfs -text
+
+# Additional Unity asset types that benefit from LFS
+*.png filter=lfs diff=lfs merge=lfs -text
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.tga filter=lfs diff=lfs merge=lfs -text
+*.tif filter=lfs diff=lfs merge=lfs -text
+*.exr filter=lfs diff=lfs merge=lfs -text
+*.prefab filter=lfs diff=lfs merge=lfs -text
+*.unity filter=lfs diff=lfs merge=lfs -text
+*.anim filter=lfs diff=lfs merge=lfs -text
+*.controller filter=lfs diff=lfs merge=lfs -text
+*.mat filter=lfs diff=lfs merge=lfs -text
+*.asset filter=lfs diff=lfs merge=lfs -text
+*.overrideController filter=lfs diff=lfs merge=lfs -text
+
+# Text and scripts (keep as normal text)
+*.cs text diff=csharp
+*.shader text
+*.cginc text
+*.compute text
+*.json text
+*.xml text
+*.yaml text
+*.yml text
+*.txt text
+*.md text
+*.ini text
+*.csv text
+*.meta text
+
+# Handle OS-specific line endings
+*.sh text eol=lf
+*.bat text eol=crlf
