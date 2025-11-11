@@ -11,7 +11,14 @@ public class SceneLoader : MonoBehaviour
 
     public void QuitGame()
     {
-        Application.Quit(); 
+        // Save any unsaved settings
+        PlayerPrefs.Save();
+        
+        #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+        #else
+            Application.Quit();
+        #endif
     }
     
 }

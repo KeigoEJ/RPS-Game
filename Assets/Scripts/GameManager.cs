@@ -34,8 +34,16 @@ public class GameManager : MonoBehaviour
     public int startingHealth = 20;
     public string mainMenuSceneName = "MainMenu";
     public int maxRage = 10;
-    public float nextRoundDelay = 2.0f;
+    
+    [Header("Timing Settings")]
     public float roundDuration = 30f;
+    public float delayBeforeNextRound = 2.0f;
+    public float gameOverPanelDelay = 1.5f;
+    public float bonkEffectDuration = 0.5f;
+    public float damageTextDuration = 1.0f;
+    public float enemyRageCardRevealDuration = 2.5f;
+    [Tooltip("How long to pause to show the RPS choices before battle")]
+    public float rpsRevealDuration = 1.0f; 
     
     [Header("Special Move Cooldowns")]
     public int attackCooldownSetting = 2;
@@ -49,9 +57,7 @@ public class GameManager : MonoBehaviour
     public int boostRageAmount = 5;
     
     [Header("Rage Card Effects")]
-    [Tooltip("Health sacrificed for Offensive Card 4")]
     public int rageHealthSacrifice = 2;
-    [Tooltip("Damage gained for Offensive Card 4")]
     public int rageSacrificeDamage = 2;
 
 
@@ -62,26 +68,34 @@ public class GameManager : MonoBehaviour
     public Slider playerRageSlider;
     public Slider enemyRageSlider;
 
-    // Timer Text
+    // Timer & Round Text
     public TextMeshProUGUI timerText;
+    public TextMeshProUGUI roundNumberText; // NEW: Round number text
 
     // Split Damage Info Text
     public TextMeshProUGUI rockDamageText;
     public TextMeshProUGUI paperDamageText;
     public TextMeshProUGUI scissorsDamageText;
 
-    // Control Containers
-    public GameObject playerControlsContainer; 
+    // NEW: Replaced the old container with direct button references
+    [Header("Player RPS Choice (Buttons)")]
+    [Tooltip("Drag the Player's Rock Button GameObject here")]
+    public GameObject playerRockButton;
+    [Tooltip("Drag the Player's Paper Button GameObject here")]
+    public GameObject playerPaperButton;
+    [Tooltip("Drag the Player's Scissors Button GameObject here")]
+    public GameObject playerScissorsButton;
 
     // Feedback UI
     public TextMeshProUGUI playerChoiceText;
     public TextMeshProUGUI enemyChoiceText;
     public TextMeshProUGUI winnerText;
-    public TextMeshProUGUI bonkText;
     
     // Game Over Panel
-    public GameObject gameOverPanel;
-
+    [Header("Game Over Panels")]
+    public GameObject playerWinPanel; // NEW
+    public GameObject playerLosePanel; // NEW
+    
     // Special Move UI
     [Header("Special UI (Attack)")]
     public GameObject attackButtonObject;
@@ -105,7 +119,6 @@ public class GameManager : MonoBehaviour
     
     // Player Rage Card UI
     [Header("Player Rage Card UI")]
-    [Tooltip("The parent panel for the PLAYER'S Rage Card choice")]
     public GameObject rageCardPanel;
     
     [Header("Player Offensive Card GameObjects (Buttons)")]
@@ -120,9 +133,8 @@ public class GameManager : MonoBehaviour
     public GameObject defensiveCard3_Button; // ID 3
     public GameObject defensiveCard4_Button; // ID 4
     
-    // NEW: Enemy Rage Card UI
+    // Enemy Rage Card UI
     [Header("Enemy Rage Card UI")]
-    [Tooltip("The parent panel to show the ENEMY'S chosen card")]
     public GameObject enemyRageCardPanel;
     [Header("Enemy Offensive Card Images")]
     public GameObject enemyOffensiveCard1_Image; // ID 1
@@ -137,21 +149,62 @@ public class GameManager : MonoBehaviour
     
     // Damage Feedback
     [Header("Damage Feedback UI")]
-    [Tooltip("Text to show damage taken by the player")]
     public TextMeshProUGUI playerDamageText;
-    [Tooltip("Text to show damage taken by the enemy")]
     public TextMeshProUGUI enemyDamageText;
     
-    // Enemy Special Indicators
+    // ---
+    // NEW: Enemy Special Move Indicators (Replaced Old System)
+    // ---
     [Header("Enemy Special Move Indicators")]
-    [Tooltip("Image/Icon to show when enemy uses Attack")]
-    public GameObject enemyAttackIndicator;
-    [Tooltip("Image/Icon to show when enemy uses Defense")]
-    public GameObject enemyDefenseIndicator;
-    [Tooltip("Image/Icon to show when enemy uses Boost")]
-    public GameObject enemyBoostIndicator;
-    [Tooltip("Image/Icon to show when enemy uses Heal")]
-    public GameObject enemyHealIndicator;
+    [Header("Enemy Special UI (Attack)")]
+    public GameObject enemyAttackIcon;
+    public GameObject enemyAttackCooldownIcon;
+    public TextMeshProUGUI enemyAttackCooldownText;
+
+    [Header("Enemy Special UI (Defense)")]
+    public GameObject enemyDefenseIcon;
+    public GameObject enemyDefenseCooldownIcon;
+    public TextMeshProUGUI enemyDefenseCooldownText;
+
+    [Header("Enemy Special UI (Boost Rage)")]
+    public GameObject enemyBoostIcon;
+    public GameObject enemyBoostCooldownIcon;
+    public TextMeshProUGUI enemyBoostCooldownText;
+
+    [Header("Enemy Special UI (Heal)")]
+    public GameObject enemyHealIcon;
+    public GameObject enemyHealCooldownIcon;
+    public TextMeshProUGUI enemyHealCooldownText;
+    // ---
+    
+    [Header("Enemy RPS Choice Indicators")]
+    [Tooltip("Image/Icon to show when enemy chooses Rock")]
+    public GameObject enemyRockIndicator;
+    [Tooltip("Image/Icon to show when enemy chooses Paper")]
+    public GameObject enemyPaperIndicator;
+    [Tooltip("Image/Icon to show when enemy chooses Scissors")]
+    public GameObject enemyScissorsIndicator;
+    
+    // NEW: Hit Effect UI
+    [Header("Hit Effect UI")]
+    [Tooltip("The GameObject with the Hammer's Animator")]
+    public GameObject hammerImageObject;
+    [Tooltip("The impact effect image for the Player")]
+    public GameObject playerImpactImage;
+    [Tooltip("The impact effect image for the Enemy")]
+    public GameObject enemyImpactImage;
+    
+    [Header("Audio")]
+    [Tooltip("The AudioSource to play game sounds")]
+    public AudioSource gameAudioSource;
+    [Tooltip("The 'bonk' sound effect")]
+    public AudioClip bonkSoundClip;
+    
+    [Header("Animation References")]
+    public Animator playerHealthAnimator;
+    public Animator enemyHealthAnimator;
+    public Animator playerRageAnimator;
+    public Animator enemyRageAnimator;
 
 
     // --- Private Game State Variables ---
@@ -164,6 +217,8 @@ public class GameManager : MonoBehaviour
     private int enemyHealth;
     private int playerRage;
     private int enemyRage;
+    
+    private int roundNumber = 0; // NEW: Round counter
 
     // Randomized damage
     private int rockDamage;
@@ -192,7 +247,6 @@ public class GameManager : MonoBehaviour
     private int enemyHealCooldown = 0; 
     
     // Temporary Rage Card Effects
-    // Player
     private bool playerHasDoubleDamage = false;
     private bool playerHasIgnoreDefense = false;
     private int  playerDamageSacrifice = 0;
@@ -200,13 +254,18 @@ public class GameManager : MonoBehaviour
     private bool playerHasIgnoreAttack = false;
     private bool playerHealsOnWin = false;
     
-    // Enemy
     private bool enemyHasDoubleDamage = false;
     private bool enemyHasIgnoreDefense = false;
     private int  enemyDamageSacrifice = 0;
     private bool enemyHasBlockAllDamage = false;
     private bool enemyHasIgnoreAttack = false;
     private bool enemyHealsOnWin = false;
+    
+    // Animation Trigger Name
+    private const string SHAKE_TRIGGER = "Trigger";
+    // NEW: Hit Animation Triggers
+    private const string PLAYER_HIT_TRIGGER = "PlayerHit";
+    private const string ENEMY_HIT_TRIGGER = "EnemyHit";
 
     // --- Game Flow Functions ---
 
@@ -224,6 +283,11 @@ public class GameManager : MonoBehaviour
         if (defensiveCard2_Button != null) defensiveCard2_Button.GetComponent<Button>().onClick.AddListener(() => OnPlayerChoseDefensiveCard(2));
         if (defensiveCard3_Button != null) defensiveCard3_Button.GetComponent<Button>().onClick.AddListener(() => OnPlayerChoseDefensiveCard(3));
         if (defensiveCard4_Button != null) defensiveCard4_Button.GetComponent<Button>().onClick.AddListener(() => OnPlayerChoseDefensiveCard(4));
+        
+        // Hook up the 3 player RPS buttons
+        if (playerRockButton != null) playerRockButton.GetComponent<Button>().onClick.AddListener(OnPlayerChoseRock);
+        if (playerPaperButton != null) playerPaperButton.GetComponent<Button>().onClick.AddListener(OnPlayerChosePaper);
+        if (playerScissorsButton != null) playerScissorsButton.GetComponent<Button>().onClick.AddListener(OnPlayerChoseScissors);
     }
 
     void InitializeGame()
@@ -233,6 +297,7 @@ public class GameManager : MonoBehaviour
         enemyHealth = startingHealth;
         playerRage = 0;
         enemyRage = 0;
+        roundNumber = 0; // NEW: Reset round number
 
         // Init player cooldowns
         attackCooldown = 0;
@@ -247,19 +312,26 @@ public class GameManager : MonoBehaviour
         enemyHealCooldown = 0;
 
         // Setup UI
-        if (bonkText != null) bonkText.gameObject.SetActive(false);
-        if (gameOverPanel != null) gameOverPanel.SetActive(false);
         if (rageCardPanel != null) rageCardPanel.SetActive(false);
-        
-        // NEW: Hide enemy rage panel
         if (enemyRageCardPanel != null) enemyRageCardPanel.SetActive(false);
+        
+        // NEW: Hide both game over panels
+        if (playerWinPanel != null) playerWinPanel.SetActive(false);
+        if (playerLosePanel != null) playerLosePanel.SetActive(false);
         
         if (playerDamageText != null) playerDamageText.gameObject.SetActive(false);
         if (enemyDamageText != null) enemyDamageText.gameObject.SetActive(false);
-        HideAllEnemyIndicators();
+        
+        // NEW: Hide hit effect UI
+        if (hammerImageObject != null) hammerImageObject.SetActive(false);
+        if (playerImpactImage != null) playerImpactImage.SetActive(false);
+        if (enemyImpactImage != null) enemyImpactImage.SetActive(false);
+        
+        HideAllEnemyRPSIndicators(); 
+        UpdateEnemySpecialMoveUI(); // Set enemy special UI to initial state
         
         HideAllPlayerRageCards();
-        HideAllEnemyRageCards(); // NEW
+        HideAllEnemyRageCards(); 
         
         if (playerHealthSlider != null) { playerHealthSlider.maxValue = startingHealth; }
         if (enemyHealthSlider != null) { enemyHealthSlider.maxValue = startingHealth; }
@@ -291,6 +363,10 @@ public class GameManager : MonoBehaviour
 
     IEnumerator StartNewRound()
     {
+        // NEW: Increment and display round number
+        roundNumber++;
+        if (roundNumberText != null) roundNumberText.text = $"Round: {roundNumber}";
+        
         // 1. Reset all temporary round effects
         ResetRoundEffects();
         
@@ -300,7 +376,7 @@ public class GameManager : MonoBehaviour
             yield return StartCoroutine(ShowPlayerRageCards());
         }
         
-        // 3. Check for Enemy Rage Event (NOW A COROUTINE)
+        // 3. Check for Enemy Rage Event
         if (enemyRage >= maxRage)
         {
             yield return StartCoroutine(TriggerEnemyRageCard());
@@ -330,10 +406,15 @@ public class GameManager : MonoBehaviour
         UpdateDamageInfoUI();
 
         // Show controls
-        if (playerControlsContainer != null) playerControlsContainer.SetActive(true);
+        ShowAllPlayerRPSButtons(); 
         UpdateSpecialMoveUI(); 
+        UpdateEnemySpecialMoveUI();
         
-        HideAllEnemyIndicators();
+        // Make sure all text objects are active at round start
+        ToggleAllSpecialUI(true);
+        ToggleAllEnemySpecialUI(true);
+        
+        ShowAllEnemyRPSIndicators(); 
         if (playerDamageText != null) playerDamageText.gameObject.SetActive(false);
         if (enemyDamageText != null) enemyDamageText.gameObject.SetActive(false);
 
@@ -352,23 +433,43 @@ public class GameManager : MonoBehaviour
     {
         InstantLoss();
     }
-
-    private void PlayRound()
+    
+    // This function is called by the RPS buttons to lock in choices
+    private void LockInChoicesAndReveal(Move chosenPlayerMove)
     {
         if (!isRoundActive || isGameOver) return;
         
         isRoundActive = false; // Stop the timer
         
-        // Hide all controls
-        if (playerControlsContainer != null) playerControlsContainer.SetActive(false);
-        ToggleAllSpecialUI(false); 
-
-
-        // --- 1. Get Enemy Choices ---
+        // --- 1. Lock in ALL choices ---
+        playerMove = chosenPlayerMove;
+        
         enemySpecialMove = GetEnemySpecialMove();
         enemyMove = GetEnemyMove();
         
-        ShowEnemyIndicator(enemySpecialMove);
+        // --- 2. Hide Player Special Move controls & Show Enemy's choice ---
+        // Player lock-in is handled by OnPlayerChose... functions
+        LockInEnemySpecialMove(enemySpecialMove); // Show only the enemy's chosen move
+
+        // --- 3. REVEAL RPS CHOICES ---
+        
+        // Show RPS indicators
+        ShowPlayerRPSIndicator(playerMove);
+        ShowEnemyRPSIndicator(enemyMove);
+        
+        // --- 4. Start the Battle Coroutine ---
+        StartCoroutine(ResolveBattleAfterDelay());
+    }
+
+    // This Coroutine contains the *actual* battle logic
+    private IEnumerator ResolveBattleAfterDelay()
+    {
+        // --- 1. Wait for the reveal animation ---
+        yield return new WaitForSeconds(rpsRevealDuration);
+
+        // --- 1.5. Hide ALL Special UI (now that battle starts) ---
+        ToggleAllSpecialUI(false); 
+        ToggleAllEnemySpecialUI(false); 
         
         // --- 2. Apply Instant Effects & Set Cooldowns ---
         ApplyAndSetCooldowns();
@@ -381,7 +482,7 @@ public class GameManager : MonoBehaviour
         {
             // Player Won
             int baseDamage = GetDamageAmount(playerMove);
-            int bonusDamage = (playerSpecialMove == SpecialMove.Attack) ? 2 : 0;
+            int bonusDamage = (playerSpecialMove == SpecialMove.Attack && !enemyHasIgnoreAttack) ? 2 : 0; 
             int damageReduction = (enemySpecialMove == SpecialMove.Defense && !playerHasIgnoreDefense) ? 2 : 0; 
             int sacrificeDamage = playerDamageSacrifice;
             
@@ -391,6 +492,7 @@ public class GameManager : MonoBehaviour
             {
                 int heal = GetDamageAmount(playerMove);
                 playerHealth = Mathf.Min(startingHealth, playerHealth + heal);
+                SafeSetTrigger(playerHealthAnimator, SHAKE_TRIGGER); 
                 Debug.Log($"Player converted win to {heal} heal!");
             }
             else
@@ -401,8 +503,9 @@ public class GameManager : MonoBehaviour
                 
                 enemyHealth -= totalDamage;
                 if (totalDamage > 0) {
+                    SafeSetTrigger(enemyHealthAnimator, SHAKE_TRIGGER); 
                     IncreaseRage(ref enemyRage, totalDamage, false);
-                    StartCoroutine(ShowBonkEffect());
+                    StartCoroutine(ShowHitEffect(false)); // NEW: false = enemy got hit
                     StartCoroutine(ShowDamageText(enemyDamageText, totalDamage)); 
                 }
             }
@@ -412,7 +515,7 @@ public class GameManager : MonoBehaviour
             // Enemy Won
             int baseDamage = GetDamageAmount(enemyMove);
             int bonusDamage = (enemySpecialMove == SpecialMove.Attack && !playerHasIgnoreAttack) ? 2 : 0; 
-            int damageReduction = (playerSpecialMove == SpecialMove.Defense) ? 2 : 0;
+            int damageReduction = (playerSpecialMove == SpecialMove.Defense && !enemyHasIgnoreDefense) ? 2 : 0; 
             int sacrificeDamage = enemyDamageSacrifice;
             
             int totalDamage = Mathf.Max(0, baseDamage + bonusDamage - damageReduction + sacrificeDamage);
@@ -421,6 +524,7 @@ public class GameManager : MonoBehaviour
             {
                 int heal = GetDamageAmount(enemyMove);
                 enemyHealth = Mathf.Min(startingHealth, enemyHealth + heal);
+                SafeSetTrigger(enemyHealthAnimator, SHAKE_TRIGGER); 
                 Debug.Log($"Enemy converted win to {heal} heal!");
             }
             else
@@ -431,8 +535,9 @@ public class GameManager : MonoBehaviour
                 
                 playerHealth -= totalDamage;
                 if (totalDamage > 0) {
+                    SafeSetTrigger(playerHealthAnimator, SHAKE_TRIGGER); 
                     IncreaseRage(ref playerRage, totalDamage, true);
-                    StartCoroutine(ShowBonkEffect());
+                    StartCoroutine(ShowHitEffect(true)); // NEW: true = player got hit
                     StartCoroutine(ShowDamageText(playerDamageText, totalDamage)); 
                 }
             }
@@ -446,7 +551,9 @@ public class GameManager : MonoBehaviour
         UpdateHealthAndRageUI(); 
         
         if (CheckForGameOver()) {
-            StartCoroutine(ShowGameOverPanel(nextRoundDelay));
+            // NEW: Show the correct win/lose panel
+            bool playerWonMatch = (playerHealth > 0);
+            StartCoroutine(ShowGameOverPanel(gameOverPanelDelay, playerWonMatch));
         } else {
             StartCoroutine(RoundResetDelay()); 
         }
@@ -458,6 +565,7 @@ public class GameManager : MonoBehaviour
         if (playerSpecialMove == SpecialMove.Heal)
         {
             playerHealth = Mathf.Min(startingHealth, playerHealth + healAmount);
+            SafeSetTrigger(playerHealthAnimator, SHAKE_TRIGGER); 
             healCooldown = healCooldownSetting;
         }
         else if (playerSpecialMove == SpecialMove.BoostRage)
@@ -478,6 +586,7 @@ public class GameManager : MonoBehaviour
         if (enemySpecialMove == SpecialMove.Heal)
         {
             enemyHealth = Mathf.Min(startingHealth, enemyHealth + healAmount);
+            SafeSetTrigger(enemyHealthAnimator, SHAKE_TRIGGER); 
             enemyHealCooldown = healCooldownSetting;
         }
         else if (enemySpecialMove == SpecialMove.BoostRage)
@@ -525,10 +634,10 @@ public class GameManager : MonoBehaviour
         LockInSpecialMove(SpecialMove.Heal);
     }
 
-    // RPS buttons NOW call PlayRound() directly.
-    public void OnPlayerChoseRock() { if (!isRoundActive) return; playerMove = Move.Rock; PlayRound(); }
-    public void OnPlayerChosePaper() { if (!isRoundActive) return; playerMove = Move.Paper; PlayRound(); }
-    public void OnPlayerChoseScissors() { if (!isRoundActive) return; playerMove = Move.Scissors; PlayRound(); }
+    // RPS buttons NOW call the new reveal function
+    public void OnPlayerChoseRock() { LockInChoicesAndReveal(Move.Rock); }
+    public void OnPlayerChosePaper() { LockInChoicesAndReveal(Move.Paper); }
+    public void OnPlayerChoseScissors() { LockInChoicesAndReveal(Move.Scissors); }
 
     // GAME OVER Buttons
     public void OnRestart() { SceneManager.LoadScene(SceneManager.GetActiveScene().name); }
@@ -558,6 +667,14 @@ public class GameManager : MonoBehaviour
 
     // --- Helper & Logic Functions ---
     
+    private void SafeSetTrigger(Animator animator, string triggerName)
+    {
+        if (animator != null && animator.gameObject.activeInHierarchy)
+        {
+            animator.SetTrigger(triggerName);
+        }
+    }
+    
     private void ResetRoundEffects()
     {
         playerHasDoubleDamage = false;
@@ -575,48 +692,94 @@ public class GameManager : MonoBehaviour
         enemyHealsOnWin = false;
     }
 
+    // This function now also hides the text of un-chosen moves
+    // and correctly shows the "greyed out" image for available-but-not-chosen moves.
     private void LockInSpecialMove(SpecialMove chosenMove)
     {
-        if (chosenMove != SpecialMove.Attack && attackButtonObject != null)
+        if (chosenMove != SpecialMove.Attack)
         {
-            attackButtonObject.SetActive(false);
-            if (attackCooldown == 0) attackCooldownImage.SetActive(true); 
+            if (attackButtonObject != null) attackButtonObject.SetActive(false);
+            if (attackCooldownImage != null)
+            {
+                // Show cooldown image if it's on CD (attackCooldown > 0)
+                // OR if it was available (attackCooldown == 0) to show the greyed-out icon
+                attackCooldownImage.SetActive(true); 
+            }
+            if (attackCooldownText != null) attackCooldownText.gameObject.SetActive(false); 
         }
-        if (chosenMove != SpecialMove.Defense && defenseButtonObject != null)
+
+        if (chosenMove != SpecialMove.Defense)
         {
-            defenseButtonObject.SetActive(false);
-            if (defenseCooldown == 0) defenseCooldownImage.SetActive(true);
+            if (defenseButtonObject != null) defenseButtonObject.SetActive(false);
+            if (defenseCooldownImage != null)
+            {
+                defenseCooldownImage.SetActive(true); // Show greyed-out/cooldown icon
+            }
+            if (defenseCooldownText != null) defenseCooldownText.gameObject.SetActive(false);
         }
-        if (chosenMove != SpecialMove.BoostRage && boostButtonObject != null)
+
+        if (chosenMove != SpecialMove.BoostRage)
         {
-            boostButtonObject.SetActive(false);
-            if (boostCooldown == 0) boostCooldownImage.SetActive(true);
+            if (boostButtonObject != null) boostButtonObject.SetActive(false);
+            if (boostCooldownImage != null)
+            {
+                boostCooldownImage.SetActive(true); // Show greyed-out/cooldown icon
+            }
+            if (boostCooldownText != null) boostCooldownText.gameObject.SetActive(false);
         }
-        if (chosenMove != SpecialMove.Heal && healButtonObject != null)
+
+        if (chosenMove != SpecialMove.Heal)
         {
-            healButtonObject.SetActive(false);
-            if (healCooldown == 0) healCooldownImage.SetActive(true);
+            if (healButtonObject != null) healButtonObject.SetActive(false);
+            if (healCooldownImage != null)
+            {
+                healCooldownImage.SetActive(true); // Show greyed-out/cooldown icon
+            }
+            if (healCooldownText != null) healCooldownText.gameObject.SetActive(false);
         }
+    }
+    
+    private void ShowAllPlayerRPSButtons(bool animate = false)
+    {
+        if (playerRockButton != null) playerRockButton.SetActive(true);
+        if (playerPaperButton != null) playerPaperButton.SetActive(true);
+        if (playerScissorsButton != null) playerScissorsButton.SetActive(true);
+
+        if (animate)
+        {
+            SafeSetTrigger(playerRockButton.GetComponent<Animator>(), SHAKE_TRIGGER);
+            SafeSetTrigger(playerPaperButton.GetComponent<Animator>(), SHAKE_TRIGGER);
+            SafeSetTrigger(playerScissorsButton.GetComponent<Animator>(), SHAKE_TRIGGER);
+        }
+    }
+    
+    private void HideAllPlayerRPSButtons()
+    {
+        if (playerRockButton != null) playerRockButton.SetActive(false);
+        if (playerPaperButton != null) playerPaperButton.SetActive(false);
+        if (playerScissorsButton != null) playerScissorsButton.SetActive(false);
     }
 
     void InstantLoss()
     {
         Debug.Log("Player ran out of time! Instant Loss.");
         
-        if (playerControlsContainer != null) playerControlsContainer.SetActive(false);
+        HideAllPlayerRPSButtons();
         ToggleAllSpecialUI(false); 
-        HideAllEnemyIndicators(); 
+        ToggleAllEnemySpecialUI(false); 
         
-        // NEW: Also hide rage panels on instant loss
+        HideAllEnemyRPSIndicators(); 
+        
         if (rageCardPanel != null) rageCardPanel.SetActive(false);
         if (enemyRageCardPanel != null) enemyRageCardPanel.SetActive(false);
 
         isGameOver = true;
         playerHealth = 0; 
+        SafeSetTrigger(playerHealthAnimator, SHAKE_TRIGGER); 
         UpdateHealthAndRageUI(); 
         winnerText.text = "Out of time! You lose!";
         winnerText.color = Color.red;
-        StartCoroutine(ShowGameOverPanel(nextRoundDelay));
+        StartCoroutine(ShowGameOverPanel(gameOverPanelDelay, false)); // NEW: false = player lost
     }
 
     // --- Damage & AI Logic ---
@@ -688,6 +851,15 @@ public class GameManager : MonoBehaviour
         if (isGameOver) return;
         
         rageMeter = Mathf.Min(maxRage, rageMeter + damageTaken);
+        
+        if (isPlayer)
+        {
+            SafeSetTrigger(playerRageAnimator, SHAKE_TRIGGER); 
+        }
+        else
+        {
+            SafeSetTrigger(enemyRageAnimator, SHAKE_TRIGGER); 
+        }
     }
     
     // --- Rage Card Logic ---
@@ -704,7 +876,6 @@ public class GameManager : MonoBehaviour
         if (defensiveCard4_Button != null) defensiveCard4_Button.SetActive(false);
     }
     
-    // NEW: Helper to hide all 8 enemy cards
     private void HideAllEnemyRageCards()
     {
         if (enemyOffensiveCard1_Image != null) enemyOffensiveCard1_Image.SetActive(false);
@@ -722,8 +893,7 @@ public class GameManager : MonoBehaviour
         isRoundActive = false; // Stop timer
         playerHasChosenRageCard = false; // Set flag to pause
         
-        if (playerControlsContainer != null) playerControlsContainer.SetActive(false);
-        ToggleAllSpecialUI(false);
+        // Special UI stays active
         
         int offeredOffensiveCardID = random.Next(1, 5); 
         int offeredDefensiveCardID = random.Next(1, 5); 
@@ -769,6 +939,7 @@ public class GameManager : MonoBehaviour
                 case 3: attackCooldown = 0; break; 
                 case 4: 
                     playerHealth -= rageHealthSacrifice;
+                    SafeSetTrigger(playerHealthAnimator, SHAKE_TRIGGER); 
                     playerDamageSacrifice = rageSacrificeDamage;
                     break;
             }
@@ -785,20 +956,15 @@ public class GameManager : MonoBehaviour
         }
     }
     
-    // NEW: Converted to Coroutine
     private IEnumerator TriggerEnemyRageCard()
     {
         isRoundActive = false; // Stop timer
         
-        // Hide game controls
-        if (playerControlsContainer != null) playerControlsContainer.SetActive(false);
-        ToggleAllSpecialUI(false);
+        // Special UI stays active
         
-        // 1. Generate the two "offers" for the AI
         int offeredOffensiveID = random.Next(1, 5);
         int offeredDefensiveID = random.Next(1, 5);
         
-        // 2. AI decides which of the two offers to pick
         RageCardCategory chosenCategory;
         int chosenCardID;
         
@@ -815,10 +981,8 @@ public class GameManager : MonoBehaviour
             Debug.Log($"Enemy is healthy. Chose: {GetCardDescription(chosenCategory, chosenCardID)}");
         }
         
-        // 3. Hide all 8 enemy card images
         HideAllEnemyRageCards();
         
-        // 4. Show the ONE chosen card
         if (chosenCategory == RageCardCategory.Offensive)
         {
             switch(chosenCardID)
@@ -840,18 +1004,14 @@ public class GameManager : MonoBehaviour
             }
         }
         
-        // 5. Show the parent panel and apply effect
         if (enemyRageCardPanel != null) enemyRageCardPanel.SetActive(true);
         ApplyEnemyRageEffect(chosenCategory, chosenCardID);
         
-        // 6. Reset rage
         enemyRage = 0;
         UpdateHealthAndRageUI();
         
-        // 7. Wait for the player to see the card
-        yield return new WaitForSeconds(nextRoundDelay);
+        yield return new WaitForSeconds(enemyRageCardRevealDuration);
         
-        // 8. Hide the panel and resume
         if (enemyRageCardPanel != null) enemyRageCardPanel.SetActive(false);
     }
     
@@ -867,6 +1027,7 @@ public class GameManager : MonoBehaviour
                 case 3: enemyAttackCooldown = 0; break; 
                 case 4: 
                     enemyHealth -= rageHealthSacrifice;
+                    SafeSetTrigger(enemyHealthAnimator, SHAKE_TRIGGER); 
                     enemyDamageSacrifice = rageSacrificeDamage;
                     break;
             }
@@ -913,35 +1074,91 @@ public class GameManager : MonoBehaviour
 
     // --- UI & Coroutine Functions ---
     
-    private void HideAllEnemyIndicators()
+    // This function now also hides the text of un-chosen moves
+    // and correctly shows the "greyed out" image for available-but-not-chosen moves.
+    private void LockInEnemySpecialMove(SpecialMove chosenMove)
     {
-        if (enemyAttackIndicator != null) enemyAttackIndicator.SetActive(false);
-        if (enemyDefenseIndicator != null) enemyDefenseIndicator.SetActive(false);
-        if (enemyBoostIndicator != null) enemyBoostIndicator.SetActive(false);
-        if (enemyHealIndicator != null) enemyHealIndicator.SetActive(false);
+        // Hide non-chosen moves. The chosen one is already active.
+        if (chosenMove != SpecialMove.Attack)
+        {
+            if (enemyAttackIcon != null) enemyAttackIcon.SetActive(false);
+            if (enemyAttackCooldownIcon != null)
+            {
+                // Show cooldown image if it's on CD (enemyAttackCooldown > 0)
+                // OR if it was available (enemyAttackCooldown == 0) to show the greyed-out icon
+                enemyAttackCooldownIcon.SetActive(true);
+            }
+            if (enemyAttackCooldownText != null) enemyAttackCooldownText.gameObject.SetActive(false);
+        }
+        if (chosenMove != SpecialMove.Defense)
+        {
+            if (enemyDefenseIcon != null) enemyDefenseIcon.SetActive(false);
+            if (enemyDefenseCooldownIcon != null)
+            {
+                enemyDefenseCooldownIcon.SetActive(true); // Show greyed-out/cooldown icon
+            }
+            if (enemyDefenseCooldownText != null) enemyDefenseCooldownText.gameObject.SetActive(false);
+        }
+        if (chosenMove != SpecialMove.BoostRage)
+        {
+            if (enemyBoostIcon != null) enemyBoostIcon.SetActive(false);
+            if (enemyBoostCooldownIcon != null)
+            {
+                enemyBoostCooldownIcon.SetActive(true); // Show greyed-out/cooldown icon
+            }
+            if (enemyBoostCooldownText != null) enemyBoostCooldownText.gameObject.SetActive(false);
+        }
+        if (chosenMove != SpecialMove.Heal)
+        {
+  
+            if (enemyHealIcon != null) enemyHealIcon.SetActive(false);
+            if (enemyHealCooldownIcon != null)
+            {
+                enemyHealCooldownIcon.SetActive(true); // Show greyed-out/cooldown icon
+            }
+            if (enemyHealCooldownText != null) enemyHealCooldownText.gameObject.SetActive(false);
+        }
     }
     
-    private void ShowEnemyIndicator(SpecialMove move)
+    private void HideAllEnemyRPSIndicators()
     {
-        HideAllEnemyIndicators();
-        
-        switch(move)
+        if (enemyRockIndicator != null) enemyRockIndicator.SetActive(false);
+        if (enemyPaperIndicator != null) enemyPaperIndicator.SetActive(false);
+        if (enemyScissorsIndicator != null) enemyScissorsIndicator.SetActive(false);
+    }
+    
+    private void ShowAllEnemyRPSIndicators(bool animate = false)
+    {
+        // Set them active first
+        if (enemyRockIndicator != null) enemyRockIndicator.SetActive(true);
+        if (enemyPaperIndicator != null) enemyPaperIndicator.SetActive(true);
+        if (enemyScissorsIndicator != null) enemyScissorsIndicator.SetActive(true);
+
+        if (animate)
         {
-            case SpecialMove.Attack:
-                if (enemyAttackIndicator != null) enemyAttackIndicator.SetActive(true);
-                break;
-            case SpecialMove.Defense:
-                if (enemyDefenseIndicator != null) enemyDefenseIndicator.SetActive(true);
-                break;
-            case SpecialMove.BoostRage:
-                if (enemyBoostIndicator != null) enemyBoostIndicator.SetActive(true);
-                break;
-            case SpecialMove.Heal:
-                if (enemyHealIndicator != null) enemyHealIndicator.SetActive(true);
-                break;
-            case SpecialMove.None:
-                break;
+            // Trigger the "Animate In" (which is your "Trigger")
+            SafeSetTrigger(enemyRockIndicator.GetComponent<Animator>(), SHAKE_TRIGGER);
+            SafeSetTrigger(enemyPaperIndicator.GetComponent<Animator>(), SHAKE_TRIGGER);
+            SafeSetTrigger(enemyScissorsIndicator.GetComponent<Animator>(), SHAKE_TRIGGER);
         }
+    }
+    
+    // Triggers animations on the *other* two buttons
+    private void ShowPlayerRPSIndicator(Move move)
+    {
+        // This will trigger the "animate out" on the two buttons NOT chosen
+        if (move != Move.Rock) SafeSetTrigger(playerRockButton.GetComponent<Animator>(), SHAKE_TRIGGER);
+        if (move != Move.Paper) SafeSetTrigger(playerPaperButton.GetComponent<Animator>(), SHAKE_TRIGGER);
+        if (move != Move.Scissors) SafeSetTrigger(playerScissorsButton.GetComponent<Animator>(), SHAKE_TRIGGER);
+    }
+    
+    // Triggers animations on the *other* two images
+    private void ShowEnemyRPSIndicator(Move move)
+    {
+        // This will trigger the "animate out" on the two images NOT chosen
+        if (move != Move.Rock) SafeSetTrigger(enemyRockIndicator.GetComponent<Animator>(), SHAKE_TRIGGER);
+        if (move != Move.Paper) SafeSetTrigger(enemyPaperIndicator.GetComponent<Animator>(), SHAKE_TRIGGER);
+        if (move != Move.Scissors) SafeSetTrigger(enemyScissorsIndicator.GetComponent<Animator>(), SHAKE_TRIGGER);
     }
     
     private IEnumerator ShowDamageText(TextMeshProUGUI textElement, int damage)
@@ -954,11 +1171,12 @@ public class GameManager : MonoBehaviour
         textElement.text = $"-{damage} HP";
         textElement.gameObject.SetActive(true);
         
-        yield return new WaitForSeconds(1.0f);
+        yield return new WaitForSeconds(damageTextDuration);
         
         textElement.gameObject.SetActive(false);
     }
     
+    // This function now toggles the text's GameObject
     private void ToggleAllSpecialUI(bool show)
     {
         if (attackButtonObject != null) attackButtonObject.SetActive(show);
@@ -970,15 +1188,33 @@ public class GameManager : MonoBehaviour
         if (healButtonObject != null) healButtonObject.SetActive(show);
         if (healCooldownImage != null) healCooldownImage.SetActive(show);
 
-        if (!show)
-        {
-            if (attackCooldownText != null) attackCooldownText.text = "";
-            if (defenseCooldownText != null) defenseCooldownText.text = "";
-            if (boostCooldownText != null) boostCooldownText.text = "";
-            if (healCooldownText != null) healCooldownText.text = "";
-        }
+        // Also toggle the text GameObjects
+        if (attackCooldownText != null) attackCooldownText.gameObject.SetActive(show);
+        if (defenseCooldownText != null) defenseCooldownText.gameObject.SetActive(show);
+        if (boostCooldownText != null) boostCooldownText.gameObject.SetActive(show);
+        if (healCooldownText != null) healCooldownText.gameObject.SetActive(show);
     }
 
+    // This function now toggles the text's GameObject
+    private void ToggleAllEnemySpecialUI(bool show)
+    {
+        if (enemyAttackIcon != null) enemyAttackIcon.SetActive(show);
+        if (enemyAttackCooldownIcon != null) enemyAttackCooldownIcon.SetActive(show);
+        if (enemyDefenseIcon != null) enemyDefenseIcon.SetActive(show);
+        if (enemyDefenseCooldownIcon != null) enemyDefenseCooldownIcon.SetActive(show);
+        if (enemyBoostIcon != null) enemyBoostIcon.SetActive(show);
+        if (enemyBoostCooldownIcon != null) enemyBoostCooldownIcon.SetActive(show);
+        if (enemyHealIcon != null) enemyHealIcon.SetActive(show);
+        if (enemyHealCooldownIcon != null) enemyHealCooldownIcon.SetActive(show);
+
+        // Also toggle the text GameObjects
+        if (enemyAttackCooldownText != null) enemyAttackCooldownText.gameObject.SetActive(show);
+        if (enemyDefenseCooldownText != null) enemyDefenseCooldownText.gameObject.SetActive(show);
+        if (enemyBoostCooldownText != null) enemyBoostCooldownText.gameObject.SetActive(show);
+        if (enemyHealCooldownText != null) enemyHealCooldownText.gameObject.SetActive(show);
+    }
+
+    // This function now shows "Ready" when CD is 0
     private void UpdateSpecialMoveUI()
     {
         bool isAttackReady = (attackCooldown == 0);
@@ -1000,6 +1236,30 @@ public class GameManager : MonoBehaviour
         if (healButtonObject != null) healButtonObject.SetActive(isHealReady);
         if (healCooldownImage != null) healCooldownImage.SetActive(!isHealReady);
         if (healCooldownText != null) healCooldownText.text = isHealReady ? "Ready" : $"CD: {healCooldown} Rnd";
+    }
+
+    // This function now shows "Ready" when CD is 0
+    private void UpdateEnemySpecialMoveUI()
+    {
+        bool isAttackReady = (enemyAttackCooldown == 0);
+        if (enemyAttackIcon != null) enemyAttackIcon.SetActive(isAttackReady);
+        if (enemyAttackCooldownIcon != null) enemyAttackCooldownIcon.SetActive(!isAttackReady);
+        if (enemyAttackCooldownText != null) enemyAttackCooldownText.text = isAttackReady ? "Ready" : $"CD: {enemyAttackCooldown} Rnd";
+
+        bool isDefenseReady = (enemyDefenseCooldown == 0);
+        if (enemyDefenseIcon != null) enemyDefenseIcon.SetActive(isDefenseReady);
+        if (enemyDefenseCooldownIcon != null) enemyDefenseCooldownIcon.SetActive(!isDefenseReady);
+        if (enemyDefenseCooldownText != null) enemyDefenseCooldownText.text = isDefenseReady ? "Ready" : $"CD: {enemyDefenseCooldown} Rnd";
+
+        bool isBoostReady = (enemyBoostCooldown == 0);
+        if (enemyBoostIcon != null) enemyBoostIcon.SetActive(isBoostReady);
+        if (enemyBoostCooldownIcon != null) enemyBoostCooldownIcon.SetActive(!isBoostReady);
+        if (enemyBoostCooldownText != null) enemyBoostCooldownText.text = isBoostReady ? "Ready" : $"CD: {enemyBoostCooldown} Rnd";
+
+        bool isHealReady = (enemyHealCooldown == 0);
+        if (enemyHealIcon != null) enemyHealIcon.SetActive(isHealReady);
+        if (enemyHealCooldownIcon != null) enemyHealCooldownIcon.SetActive(!isHealReady);
+        if (enemyHealCooldownText != null) enemyHealCooldownText.text = isHealReady ? "Ready" : $"CD: {enemyHealCooldown} Rnd";
     }
 
     private void UpdateUI(string winner)
@@ -1036,20 +1296,46 @@ public class GameManager : MonoBehaviour
         if (enemyRageSlider != null) enemyRageSlider.value = enemyRage;
     }
 
-    private IEnumerator ShowBonkEffect()
+    // Replaced BonkEffect with this
+    private IEnumerator ShowHitEffect(bool playerGotHit)
     {
-        if (bonkText != null)
+        // NEW: Play bonk sound
+        if (gameAudioSource != null && bonkSoundClip != null)
         {
-            bonkText.gameObject.SetActive(true);
-            yield return new WaitForSeconds(0.5f); 
-            bonkText.gameObject.SetActive(false);
+            gameAudioSource.PlayOneShot(bonkSoundClip);
         }
+        
+        if (hammerImageObject == null)
+        {
+            yield break; // Don't do anything else if hammer isn't set
+        }
+
+        hammerImageObject.SetActive(true);
+        Animator hammerAnimator = hammerImageObject.GetComponent<Animator>();
+
+        if (playerGotHit)
+        {
+            if (playerImpactImage != null) playerImpactImage.SetActive(true);
+            if (hammerAnimator != null) SafeSetTrigger(hammerAnimator, PLAYER_HIT_TRIGGER);
+        }
+        else // Enemy got hit
+        {
+            if (enemyImpactImage != null) enemyImpactImage.SetActive(true);
+            if (hammerAnimator != null) SafeSetTrigger(hammerAnimator, ENEMY_HIT_TRIGGER);
+        }
+
+        yield return new WaitForSeconds(bonkEffectDuration); // Re-use the duration
+        
+        // Hide all effects
+        hammerImageObject.SetActive(false);
+        if (playerImpactImage != null) playerImpactImage.SetActive(false);
+        if (enemyImpactImage != null) enemyImpactImage.SetActive(false);
     }
+
 
     private IEnumerator RoundResetDelay()
     {
-        // Wait for the delay
-        yield return new WaitForSeconds(nextRoundDelay);
+        yield return new WaitForSeconds(delayBeforeNextRound);
         
         // Call the Coroutine to start the next round
         StartCoroutine(StartNewRound());
@@ -1062,7 +1348,7 @@ public class GameManager : MonoBehaviour
         if (playerHealth <= 0 || enemyHealth <= 0)
         {
             isGameOver = true;
-            if (playerControlsContainer != null) playerControlsContainer.SetActive(false);
+            HideAllPlayerRPSButtons();
             
             if (playerHealth <= 0)
             {
@@ -1082,12 +1368,18 @@ public class GameManager : MonoBehaviour
         return false;
     }
 
-    private IEnumerator ShowGameOverPanel(float delay)
+    // NEW: This function now takes a boolean to show the correct panel
+    private IEnumerator ShowGameOverPanel(float delay, bool didPlayerWin)
     {
         yield return new WaitForSeconds(delay);
-        if (gameOverPanel != null)
+        
+        if (didPlayerWin)
         {
-            gameOverPanel.SetActive(true);
+            if (playerWinPanel != null) playerWinPanel.SetActive(true);
+        }
+        else
+        {
+            if (playerLosePanel != null) playerLosePanel.SetActive(true);
         }
     }
 }
