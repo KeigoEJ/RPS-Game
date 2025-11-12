@@ -28,29 +28,41 @@ public class PauseManagement : MonoBehaviour
 
     public void PauseGame()
     {
-        // ✅ Freeze gameplay but NOT UI animations
-        Time.timeScale = 0f;
+        // ✅ No time freeze, just mark as paused
+        isPaused = true;
 
-        // Activate the pause UI
         if (pausePanel != null)
             pausePanel.SetActive(true);
 
-        isPaused = true;
+        // Optionally stop gameplay (your movement, etc.)
+        ToggleGameplay(false);
     }
 
     public void ResumeGame()
     {
-        // 🕐 Unfreeze gameplay
-        Time.timeScale = 1f;
+        isPaused = false;
 
-        // Hide pause menu
         if (pausePanel != null)
             pausePanel.SetActive(false);
 
-        isPaused = false;
+        // Resume gameplay
+        ToggleGameplay(true);
     }
 
-    // Optional: if you want to call from UI Button
+    // This will disable any script you assign in the Inspector
+    [Header("🎮 Scripts to Disable When Paused")]
+    public MonoBehaviour[] scriptsToDisable;
+
+    private void ToggleGameplay(bool enable)
+    {
+        foreach (var script in scriptsToDisable)
+        {
+            if (script != null)
+                script.enabled = enable;
+        }
+    }
+
+    // Optional: call from UI Button
     public void OnResumeButton()
     {
         ResumeGame();
