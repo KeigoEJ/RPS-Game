@@ -199,6 +199,10 @@ public class GameManager : MonoBehaviour
     public AudioSource gameAudioSource;
     [Tooltip("The 'bonk' sound effect")]
     public AudioClip bonkSoundClip;
+    [Tooltip("The audio clip to play when the player wins")]
+    public AudioClip winSoundClip;
+    [Tooltip("The audio clip to play when the player loses")]
+    public AudioClip loseSoundClip;
     
     [Header("Animation References")]
     public Animator playerHealthAnimator;
@@ -1257,10 +1261,10 @@ public class GameManager : MonoBehaviour
         if (enemyBoostCooldownText != null) enemyBoostCooldownText.text = isBoostReady ? "Ready" : $"CD: {enemyBoostCooldown} Rnd";
 
         bool isHealReady = (enemyHealCooldown == 0);
-        if (enemyHealIcon != null) enemyHealIcon.SetActive(isHealReady);
-        if (enemyHealCooldownIcon != null) enemyHealCooldownIcon.SetActive(!isHealReady);
-        if (enemyHealCooldownText != null) enemyHealCooldownText.text = isHealReady ? "Ready" : $"CD: {enemyHealCooldown} Rnd";
-    }
+            if (enemyHealIcon != null) enemyHealIcon.SetActive(isHealReady);
+            if (enemyHealCooldownIcon != null) enemyHealCooldownIcon.SetActive(!isHealReady);
+            if (enemyHealCooldownText != null) enemyHealCooldownText.text = isHealReady ? "Ready" : $"CD: {enemyHealCooldown} Rnd";
+        }
 
     private void UpdateUI(string winner)
     {
@@ -1304,7 +1308,7 @@ public class GameManager : MonoBehaviour
         {
             gameAudioSource.PlayOneShot(bonkSoundClip);
         }
-        
+
         if (hammerImageObject == null)
         {
             yield break; // Don't do anything else if hammer isn't set
@@ -1325,7 +1329,7 @@ public class GameManager : MonoBehaviour
         }
 
         yield return new WaitForSeconds(bonkEffectDuration); // Re-use the duration
-        
+
         // Hide all effects
         hammerImageObject.SetActive(false);
         if (playerImpactImage != null) playerImpactImage.SetActive(false);
@@ -1340,7 +1344,7 @@ public class GameManager : MonoBehaviour
         // Call the Coroutine to start the next round
         StartCoroutine(StartNewRound());
     }
-    
+
     private bool CheckForGameOver()
     {
         if (isGameOver) return true;
@@ -1349,7 +1353,7 @@ public class GameManager : MonoBehaviour
         {
             isGameOver = true;
             HideAllPlayerRPSButtons();
-            
+
             if (playerHealth <= 0)
             {
                 if (winnerText.text != "Out of time! You lose!")
@@ -1367,7 +1371,7 @@ public class GameManager : MonoBehaviour
         }
         return false;
     }
-
+    
     // NEW: This function now takes a boolean to show the correct panel
     private IEnumerator ShowGameOverPanel(float delay, bool didPlayerWin)
     {
@@ -1376,10 +1380,22 @@ public class GameManager : MonoBehaviour
         if (didPlayerWin)
         {
             if (playerWinPanel != null) playerWinPanel.SetActive(true);
+            
+            // ADD THIS:
+            if (gameAudioSource != null && winSoundClip != null)
+            {
+                gameAudioSource.PlayOneShot(winSoundClip);
+            }
         }
         else
         {
             if (playerLosePanel != null) playerLosePanel.SetActive(true);
+            
+            // ADD THIS:
+            if (gameAudioSource != null && loseSoundClip != null)
+            {
+                gameAudioSource.PlayOneShot(loseSoundClip);
+            }
         }
     }
 }
